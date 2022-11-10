@@ -29,28 +29,33 @@ namespace Repro.MissingContextWeb.Services
                     {
                         context.Load(context.Web);
                         context.ExecuteQuery();
+
+                        switch (properties.EventType)
+                        {
+                            case SPRemoteEventType.AppInstalled:
+                                RegSyncReceivers(context);
+                                break;
+
+                            case SPRemoteEventType.AppUninstalling:
+                                var targetList = EnsureList(context);
+                                DeleteExitingReceivers(targetList);
+                                break;
+
+                            case SPRemoteEventType.ItemUpdating:
+                            case SPRemoteEventType.ItemAdding:
+                                result.ChangedItemProperties["_ExtendedDescription"] = "Changed from RER (" + DateTime.Now.ToString("o") + ")";
+                                break;
+
+                            default:
+                                result.ErrorMessage = "Unsupported event";
+                                result.Status = SPRemoteEventServiceStatus.CancelWithError;
+                                break;
+                        }
                     }
-
-                    switch (properties.EventType)
+                    else
                     {
-                        case SPRemoteEventType.AppInstalled:
-                            RegSyncReceivers(context);
-                            break;
-
-                        case SPRemoteEventType.AppUninstalling:
-                            var targetList = EnsureList(context);
-                            DeleteExitingReceivers(targetList);
-                            break;
-
-                        case SPRemoteEventType.ItemUpdating:
-                        case SPRemoteEventType.ItemAdding:
-                            result.ChangedItemProperties["_ExtendedDescription"] = "Changed from RER (" + DateTime.Now.ToString("o") + ")";
-                            break;
-
-                        default:
-                            result.ErrorMessage = "Unsupported event";
-                            result.Status = SPRemoteEventServiceStatus.CancelWithError;
-                            break;
+                        result.ErrorMessage = "Context is null";
+                        result.Status = SPRemoteEventServiceStatus.CancelWithError;
                     }
                 }
             }
@@ -59,6 +64,7 @@ namespace Repro.MissingContextWeb.Services
                 result.ErrorMessage = exc.ToString();
                 result.Status = SPRemoteEventServiceStatus.CancelWithError;
             }
+
             return result;
         }
 
